@@ -197,7 +197,7 @@ export default function Login() {
             marginBottom: '2.5rem',
             lineHeight: '1.3'
           }}>
-            Manage Your Pharmacy<br />Inventory with Ease
+            Manage Your Back Office and<br />Inventory with Ease
           </h1>
 
           {/* Feature Cards */}
@@ -674,7 +674,7 @@ export default function Login() {
             </form>
 
             {/* Contact Admin */}
-            <div style={{
+            {/* <div style={{
               marginTop: '1.5rem',
               textAlign: 'center',
               fontSize: '13px',
@@ -691,7 +691,7 @@ export default function Login() {
               }}>
                 Contact Admin
               </button>
-            </div>
+            </div> */}
           </div>
 
           {/* Mobile Footer */}

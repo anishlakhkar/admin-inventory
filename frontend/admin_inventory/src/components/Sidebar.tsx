@@ -57,7 +57,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     {
       title: 'Compliance',
       items: [
-        { path: '/compliance/validate-prescription', label: 'Validate Prescription (MedBuddy)', icon: FileCheck },
+        // { path: '/compliance/validate-prescription', label: 'Validate Prescription (MedBuddy)', icon: FileCheck },
         { path: '/compliance/check-docs', label: 'Check Regulatory Docs (MedBiz)', icon: ClipboardCheck }
       ]
     },
