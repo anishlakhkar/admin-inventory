@@ -97,10 +97,10 @@ export default function StockLevels() {
               <Filter className="w-5 h-5 text-neutral-600" />
               <h2>Filters</h2>
             </div>
-            <button className="px-4 py-2 border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors flex items-center gap-2">
+            {/* <button className="px-4 py-2 border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors flex items-center gap-2">
               <Download className="w-4 h-4" />
               Export
-            </button>
+            </button> */}
           </div>
 
           <div className="flex flex-wrap gap-3 mt-4">

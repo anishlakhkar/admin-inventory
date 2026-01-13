@@ -20,6 +20,7 @@ export default function ExpiryTracking() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [expiryData, setExpiryData] = useState<ExpiryItem[]>([]);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Fetch expiry tracking data from API
   useEffect(() => {
@@ -76,8 +77,29 @@ export default function ExpiryTracking() {
     }
   };
 
+  const getWarehouseId = (warehouse: string): string => {
+    // Extract warehouse ID from "Warehouse 003" format
+    const match = warehouse.match(/(\d+)/);
+    return match ? match[1] : warehouse;
+  };
+
+  const handleNotifyWarehouse = (warehouse: string) => {
+    const warehouseId = getWarehouseId(warehouse);
+    setToastMessage(`✓ Notification sent to Warehouse ${warehouseId}`);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
+  };
+
   return (
     <div className="space-y-6">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-4 right-4 z-50 bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-top-5">
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       <div>
         <h1>Expiry Tracking</h1>
         <p className="text-neutral-600 mt-1">
@@ -301,12 +323,18 @@ export default function ExpiryTracking() {
                   </td>
                   <td className="px-6 py-4">
                     {item.status === "Critical" && (
-                      <button className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
+                      <button 
+                        onClick={() => handleNotifyWarehouse(item.warehouse)}
+                        className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                      >
                         Mark for Clearance
                       </button>
                     )}
                     {item.status === "Expiring Soon" && (
-                      <button className="px-3 py-1 text-sm bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors">
+                      <button 
+                        onClick={() => handleNotifyWarehouse(item.warehouse)}
+                        className="px-3 py-1 text-sm bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors"
+                      >
                         Prioritize Sale
                       </button>
                     )}

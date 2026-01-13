@@ -323,7 +323,7 @@ export default function CatalogManagement() {
                         {product.catalogType === 'MedBuddy' && <User className="w-3 h-3" />}
                         {product.catalogType === 'MedBiz' && <Building2 className="w-3 h-3" />}
                         {product.catalogType === 'Both' && <Package className="w-3 h-3" />}
-                        {product.catalogType}
+                        {product.catalogType || 'None'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm">${product.price.toFixed(2)}</td>
@@ -347,6 +347,7 @@ export default function CatalogManagement() {
                         <option value="B2B">MedBiz (B2B)</option>
                         <option value="B2C">MedBuddy (B2C)</option>
                         <option value="BOTH">Both</option>
+                        <option value="">None</option>
                       </select>
                     </td>
                   </tr>

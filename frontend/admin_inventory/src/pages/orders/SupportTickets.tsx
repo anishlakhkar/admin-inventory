@@ -31,6 +31,7 @@ export default function SupportTickets() {
   const [createLoading, setCreateLoading] = useState(false);
   const [availableUsers, setAvailableUsers] = useState<UserResponse[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [selectedUserToAssign, setSelectedUserToAssign] = useState<number | ''>('');
 
   // Fetch all tickets on component mount (for stats)
   useEffect(() => {
@@ -163,6 +164,10 @@ export default function SupportTickets() {
     setSelectedTicket(ticket);
     setShowTicketModal(true);
     setResponseMessage('');
+    setSelectedUserToAssign('');
+    
+    // Fetch users for assignment
+    await fetchUsersForAssignment();
     
     // Fetch ticket comments
     try {
@@ -171,6 +176,32 @@ export default function SupportTickets() {
     } catch (err: any) {
       console.error('Error fetching ticket comments:', err);
       setTicketComments([]);
+    }
+  };
+
+  const handleAssignTicket = async () => {
+    if (!selectedTicket || !selectedUserToAssign) {
+      return;
+    }
+
+    setActionLoading(selectedTicket.id);
+    setError(null);
+    try {
+      const updatedTicket = await ticketService.assignTicket(
+        selectedTicket.id,
+        selectedUserToAssign as number,
+        'Ticket assigned by admin'
+      );
+      setAllTickets(prev => prev.map(t => t.id === selectedTicket.id ? updatedTicket : t));
+      setFilteredTickets(prev => prev.map(t => t.id === selectedTicket.id ? updatedTicket : t));
+      setSelectedTicket(updatedTicket);
+      setSelectedUserToAssign('');
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to assign ticket';
+      setError(errorMessage);
+      console.error('Error assigning ticket:', err);
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -657,6 +688,43 @@ export default function SupportTickets() {
                   <div className="text-sm text-neutral-600 mb-1">Last Updated</div>
                   <div>{selectedTicket.lastUpdate}</div>
                 </div>
+              </div>
+
+              {/* Assignment Section */}
+              <div className="border border-neutral-200 rounded-lg p-4 bg-neutral-50">
+                <div className="text-sm text-neutral-600 mb-2 font-medium">Assign Ticket</div>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedUserToAssign}
+                    onChange={(e) => setSelectedUserToAssign(e.target.value ? parseInt(e.target.value) : '')}
+                    className="flex-1 px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    disabled={loadingUsers || actionLoading === selectedTicket.id}
+                  >
+                    <option value="">Select user to assign...</option>
+                    {availableUsers.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.firstName && user.lastName 
+                          ? `${user.firstName} ${user.lastName} (${user.email})`
+                          : user.email}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleAssignTicket}
+                    disabled={!selectedUserToAssign || actionLoading === selectedTicket.id}
+                    className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {actionLoading === selectedTicket.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <User className="w-4 h-4" />
+                    )}
+                    Assign
+                  </button>
+                </div>
+                {loadingUsers && (
+                  <p className="text-xs text-neutral-500 mt-2">Loading users...</p>
+                )}
               </div>
 
               {/* Ticket Description */}

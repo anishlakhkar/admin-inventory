@@ -21,7 +21,7 @@ export default function ProductInventory() {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [viewMode, setViewMode] = useState<'view' | 'update'>('view');
+  const [viewMode, setViewMode] = useState<'view' | 'update' | 'bulkUpdate'>('view');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [warehouseFilter, setWarehouseFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -217,7 +217,7 @@ export default function ProductInventory() {
           <Eye className="w-4 h-4" />
           View Mode
         </button>
-        <button
+        {/* <button
           onClick={() => setViewMode('update')}
           className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
             viewMode === 'update' ? 'bg-blue-600 text-white' : 'text-neutral-600 hover:bg-neutral-50'
@@ -225,7 +225,7 @@ export default function ProductInventory() {
         >
           <Edit2 className="w-4 h-4" />
           Update Mode
-        </button>
+        </button> */}
       </div>
 
       {/* Search and Filters */}
@@ -454,9 +454,9 @@ export default function ProductInventory() {
                     </div>
                   </div>
                 </div>
-                <button className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                {/* <button className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
                   Reorder
-                </button>
+                </button> */}
               </div>
             ))}
           </div>
@@ -464,7 +464,7 @@ export default function ProductInventory() {
       )}
 
       {/* Expiry Tracking */}
-      <div className="bg-white rounded-lg border border-neutral-200">
+      {/* <div className="bg-white rounded-lg border border-neutral-200">
         <div className="p-6 border-b border-neutral-200">
           <h2>Expiry Tracking</h2>
         </div>
@@ -502,7 +502,7 @@ export default function ProductInventory() {
             </tbody>
           </table>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }
