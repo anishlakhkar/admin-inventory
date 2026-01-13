@@ -93,7 +93,21 @@ export default function CatalogManagement() {
                          product.sku.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
     const matchesStatus = selectedStatus === 'all' || product.status === selectedStatus;
-    const matchesCatalogType = selectedCatalogType === 'all' || product.catalogType === selectedCatalogType;
+    
+    // Catalog type filter: 'Both' products should appear when filtering by 'MedBuddy' or 'MedBiz'
+    let matchesCatalogType = true;
+    if (selectedCatalogType !== 'all') {
+      if (selectedCatalogType === 'MedBuddy') {
+        matchesCatalogType = product.catalogType === 'MedBuddy' || product.catalogType === 'Both';
+      } else if (selectedCatalogType === 'MedBiz') {
+        matchesCatalogType = product.catalogType === 'MedBiz' || product.catalogType === 'Both';
+      } else if (selectedCatalogType === 'Both') {
+        matchesCatalogType = product.catalogType === 'Both';
+      } else {
+        matchesCatalogType = product.catalogType === selectedCatalogType;
+      }
+    }
+    
     return matchesSearch && matchesCategory && matchesStatus && matchesCatalogType;
   });
 
