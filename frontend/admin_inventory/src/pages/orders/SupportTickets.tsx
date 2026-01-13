@@ -8,6 +8,7 @@ export default function SupportTickets() {
   const [filteredTickets, setFilteredTickets] = useState<Ticket[]>([]); // Filtered tickets for display
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
@@ -149,9 +150,13 @@ export default function SupportTickets() {
     setLoadingUsers(true);
     try {
       const users = await userApprovalService.getAllUsersRaw();
-      // Filter active users only (for assignment)
-      const activeUsers = users.filter(user => user.accountStatus === 'ACTIVE');
-      setAvailableUsers(activeUsers);
+      // Filter active users with EXECUTIVE user type only (backend requirement)
+      const executiveUsers = users.filter(user => 
+        user.accountStatus === 'ACTIVE' && 
+        user.userTypes && 
+        user.userTypes.some(type => type.toUpperCase() === 'EXECUTIVE')
+      );
+      setAvailableUsers(executiveUsers);
     } catch (err: any) {
       console.error('Error fetching users for assignment:', err);
       setAvailableUsers([]);
@@ -165,6 +170,8 @@ export default function SupportTickets() {
     setShowTicketModal(true);
     setResponseMessage('');
     setSelectedUserToAssign('');
+    setError(null);
+    setSuccessMessage(null);
     
     // Fetch users for assignment
     await fetchUsersForAssignment();
@@ -181,21 +188,31 @@ export default function SupportTickets() {
 
   const handleAssignTicket = async () => {
     if (!selectedTicket || !selectedUserToAssign) {
+      setError('Please select a user to assign');
       return;
     }
 
     setActionLoading(selectedTicket.id);
     setError(null);
+    setSuccessMessage(null);
     try {
       const updatedTicket = await ticketService.assignTicket(
         selectedTicket.id,
         selectedUserToAssign as number,
         'Ticket assigned by admin'
       );
+      
+      // Update all ticket lists
       setAllTickets(prev => prev.map(t => t.id === selectedTicket.id ? updatedTicket : t));
       setFilteredTickets(prev => prev.map(t => t.id === selectedTicket.id ? updatedTicket : t));
       setSelectedTicket(updatedTicket);
       setSelectedUserToAssign('');
+      
+      // Show success message
+      setSuccessMessage(`Ticket successfully assigned to ${updatedTicket.assignedTo}`);
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || err.message || 'Failed to assign ticket';
       setError(errorMessage);
@@ -693,6 +710,23 @@ export default function SupportTickets() {
               {/* Assignment Section */}
               <div className="border border-neutral-200 rounded-lg p-4 bg-neutral-50">
                 <div className="text-sm text-neutral-600 mb-2 font-medium">Assign Ticket</div>
+                
+                {/* Success Message */}
+                {successMessage && (
+                  <div className="mb-3 bg-green-50 border border-green-200 text-green-800 px-3 py-2 rounded-lg flex items-center gap-2 text-sm">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    <span>{successMessage}</span>
+                  </div>
+                )}
+                
+                {/* Error Message */}
+                {error && (
+                  <div className="mb-3 bg-red-50 border border-red-200 text-red-800 px-3 py-2 rounded-lg flex items-center gap-2 text-sm">
+                    <XCircle className="w-4 h-4 text-red-600" />
+                    <span>{error}</span>
+                  </div>
+                )}
+                
                 <div className="flex gap-2">
                   <select
                     value={selectedUserToAssign}
@@ -724,6 +758,9 @@ export default function SupportTickets() {
                 </div>
                 {loadingUsers && (
                   <p className="text-xs text-neutral-500 mt-2">Loading users...</p>
+                )}
+                {availableUsers.length === 0 && !loadingUsers && (
+                  <p className="text-xs text-neutral-500 mt-2">No executives available for assignment</p>
                 )}
               </div>
 
