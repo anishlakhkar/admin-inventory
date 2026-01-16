@@ -1,211 +1,218 @@
-import { useState } from 'react';
-import { FileText, Check, X, Eye, Download, AlertTriangle, Sparkles, Settings, Zap } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { FileText, Check, X, Eye, AlertTriangle, Plus, Loader2, Upload } from 'lucide-react';
+import { complianceService, type RegulatoryDocument, type DocumentType, type RegulatoryDocumentRequest } from '../../sevices/complianceService';
+
+const DOCUMENT_TYPE_MAP: Record<string, DocumentType> = {
+  'Business License': 'BUSINESS_LICENSE',
+  'Pharmaceutical License': 'PHARMACEUTICAL_LICENSE',
+  'Tax Certificate': 'TAX_CERTIFICATE',
+  'GMP Certificate': 'GMP_CERTIFICATE',
+  'Insurance Certificate': 'INSURANCE_CERTIFICATE',
+  'Quality Certification': 'QUALITY_CERTIFICATION',
+};
+
+const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
+  'BUSINESS_LICENSE': 'Business License',
+  'PHARMACEUTICAL_LICENSE': 'Pharmaceutical License',
+  'TAX_CERTIFICATE': 'Tax Certificate',
+  'GMP_CERTIFICATE': 'GMP Certificate',
+  'INSURANCE_CERTIFICATE': 'Insurance Certificate',
+  'QUALITY_CERTIFICATION': 'Quality Certification',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  'PENDING_REVIEW': 'Pending Review',
+  'VERIFIED': 'Verified',
+  'REJECTED': 'Rejected',
+  'AUTO_VERIFIED': 'Auto-Verified',
+  'EXPIRING_SOON': 'Expiring Soon',
+};
 
 export default function CheckDocs() {
-  const [documents, setDocuments] = useState([
-    { id: 1, company: 'MedSupply Inc.', docType: 'Business License', uploadDate: '2024-11-15', expiryDate: '2025-11-15', status: 'Verified', fileType: 'PDF', autoValidation: { score: 96, issues: [] } },
-    { id: 2, company: 'PharmaCorp', docType: 'Tax Certificate', uploadDate: '2024-10-20', expiryDate: '2025-10-20', status: 'Pending Review', fileType: 'PDF', autoValidation: { score: 92, issues: [] } },
-    { id: 3, company: 'HealthDist Ltd.', docType: 'Pharmaceutical License', uploadDate: '2024-12-01', expiryDate: '2026-12-01', status: 'Pending Review', fileType: 'PDF', autoValidation: { score: 88, issues: ['Minor text blur'] } },
-    { id: 4, company: 'MedSupply Inc.', docType: 'Insurance Certificate', uploadDate: '2024-09-10', expiryDate: '2025-09-10', status: 'Verified', fileType: 'PDF', autoValidation: { score: 98, issues: [] } },
-    { id: 5, company: 'BioHealth Co.', docType: 'Quality Certification', uploadDate: '2024-08-15', expiryDate: '2024-12-15', status: 'Expiring Soon', fileType: 'PDF', autoValidation: { score: 75, issues: ['Expiring in 30 days'] } },
-    { id: 6, company: 'PharmaCorp', docType: 'GMP Certificate', uploadDate: '2024-07-01', expiryDate: '2025-07-01', status: 'Verified', fileType: 'PDF', autoValidation: { score: 94, issues: [] } }
-  ]);
-
-  const [selectedDoc, setSelectedDoc] = useState<number | null>(null);
+  const [documents, setDocuments] = useState<RegulatoryDocument[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedDoc, setSelectedDoc] = useState<RegulatoryDocument | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
-  const [automationEnabled, setAutomationEnabled] = useState(true);
-  const [autoVerifyThreshold, setAutoVerifyThreshold] = useState(85);
-  const [showAutomationSettings, setShowAutomationSettings] = useState(false);
-  const [expiryAlertDays, setExpiryAlertDays] = useState(30);
+  const [creating, setCreating] = useState(false);
 
-  const handleVerify = (id: number) => {
-    setDocuments(documents.map(d => 
-      d.id === id ? { ...d, status: 'Verified' } : d
-    ));
-    alert('Document verified successfully');
+  const [inputMethod, setInputMethod] = useState<'upload' | 'manual'>('manual');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [formData, setFormData] = useState<RegulatoryDocumentRequest & { extractedText?: string }>({
+    companyName: '',
+    documentType: 'BUSINESS_LICENSE',
+    documentNumber: '',
+    issueDate: '',
+    expiryDate: '',
+    issuingAuthority: '',
+    fileType: 'PDF',
+    extractedText: '',
+    uploadDate: new Date().toISOString().split('T')[0],
+  });
+
+  useEffect(() => {
+    fetchDocuments();
+  }, []);
+
+  const fetchDocuments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const docs = await complianceService.getAllDocuments();
+      setDocuments(docs);
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'Failed to fetch documents');
+      console.error('Error fetching documents:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleReject = (id: number) => {
-    setSelectedDoc(id);
+  const handleAddDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.companyName || !formData.documentType) {
+      setError('Company name and document type are required');
+      return;
+    }
+
+    try {
+      setCreating(true);
+      setError(null);
+      
+      const request: RegulatoryDocumentRequest = {
+        companyName: formData.companyName,
+        documentType: formData.documentType,
+        documentNumber: formData.documentNumber || undefined,
+        issueDate: formData.issueDate || undefined,
+        expiryDate: formData.expiryDate || undefined,
+        issuingAuthority: formData.issuingAuthority || undefined,
+        fileType: formData.fileType || 'PDF',
+        extractedText: formData.extractedText || undefined,
+        uploadDate: formData.uploadDate || undefined,
+      };
+
+      await complianceService.createDocument(request);
+      setShowAddModal(false);
+      setFormData({
+        companyName: '',
+        documentType: 'BUSINESS_LICENSE',
+        documentNumber: '',
+        issueDate: '',
+        expiryDate: '',
+        issuingAuthority: '',
+        fileType: 'PDF',
+        extractedText: '',
+        uploadDate: new Date().toISOString().split('T')[0],
+      });
+      await fetchDocuments();
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'Failed to create document');
+      console.error('Error creating document:', err);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleVerify = async (id: number) => {
+    try {
+      setError(null);
+      await complianceService.verifyDocument(id);
+      await fetchDocuments();
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'Failed to verify document');
+      console.error('Error verifying document:', err);
+    }
+  };
+
+  const handleReject = (doc: RegulatoryDocument) => {
+    setSelectedDoc(doc);
     setShowRejectModal(true);
   };
 
-  const handleAutoVerify = () => {
-    const updated = documents.map(d => {
-      if (d.status === 'Pending Review' && d.autoValidation.score >= autoVerifyThreshold) {
-        return { ...d, status: 'Auto-Verified' };
-      }
-      return d;
-    });
-    setDocuments(updated);
-    const count = updated.filter(d => d.status === 'Auto-Verified').length;
-    alert(`${count} document(s) auto-verified based on AI validation`);
-  };
-
-  const handleBulkExpiryCheck = () => {
-    const today = new Date();
-    const alertDate = new Date();
-    alertDate.setDate(today.getDate() + expiryAlertDays);
-    
-    let expiringCount = 0;
-    const updated = documents.map(d => {
-      const expiry = new Date(d.expiryDate);
-      if (expiry <= alertDate && expiry > today && d.status !== 'Expiring Soon') {
-        expiringCount++;
-        return { ...d, status: 'Expiring Soon' };
-      }
-      return d;
-    });
-    
-    setDocuments(updated);
-    alert(`Expiry check complete. ${expiringCount} documents flagged as expiring within ${expiryAlertDays} days.`);
-  };
-
-  const confirmReject = () => {
-    if (!rejectReason.trim()) {
-      alert('Please provide a reason for rejection');
+  const confirmReject = async () => {
+    if (!rejectReason.trim() || !selectedDoc) {
+      setError('Please provide a reason for rejection');
       return;
     }
-    if (selectedDoc !== null) {
-      setDocuments(documents.map(d => 
-        d.id === selectedDoc ? { ...d, status: 'Rejected' } : d
-      ));
-      alert('Document rejected');
+
+    try {
+      setError(null);
+      await complianceService.rejectDocument(selectedDoc.id, rejectReason);
       setShowRejectModal(false);
       setRejectReason('');
       setSelectedDoc(null);
+      await fetchDocuments();
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'Failed to reject document');
+      console.error('Error rejecting document:', err);
     }
   };
 
+  const handleViewDocument = async (doc: RegulatoryDocument) => {
+    try {
+      setError(null);
+      const fullDoc = await complianceService.getDocumentById(doc.id);
+      setSelectedDoc(fullDoc);
+      setShowViewModal(true);
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'Failed to fetch document details');
+      console.error('Error fetching document:', err);
+    }
+  };
+
+
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Verified':
-      case 'Auto-Verified':
+      case 'VERIFIED':
+      case 'AUTO_VERIFIED':
         return 'bg-green-100 text-green-700';
-      case 'Rejected': 
+      case 'REJECTED': 
         return 'bg-red-100 text-red-700';
-      case 'Expiring Soon': 
+      case 'EXPIRING_SOON': 
         return 'bg-orange-100 text-orange-700';
       default: 
         return 'bg-blue-100 text-blue-700';
     }
   };
 
-  const getScoreColor = (score: number) => {
+  const getScoreColor = (score?: number) => {
+    if (!score) return 'text-neutral-600';
     if (score >= 90) return 'text-green-600';
     if (score >= 75) return 'text-orange-600';
     return 'text-red-600';
   };
 
-  const pendingCount = documents.filter(d => d.status === 'Pending Review').length;
-  const expiringCount = documents.filter(d => d.status === 'Expiring Soon').length;
+  const pendingCount = documents.filter(d => d.status === 'PENDING_REVIEW').length;
+  const expiringCount = documents.filter(d => d.status === 'EXPIRING_SOON').length;
+  const verifiedCount = documents.filter(d => d.status === 'VERIFIED' || d.status === 'AUTO_VERIFIED').length;
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
       <div>
-        <h1>Check Regulatory Docs - MedBiz</h1>
-        <p className="text-neutral-600 mt-1">Verify supplier regulatory documentation and compliance with AI automation</p>
-      </div>
-
-      {/* Automation Control Panel */}
-      <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <h3 className="text-blue-900">AI-Powered Document Automation</h3>
-              <p className="text-sm text-blue-700 mt-1">
-                Auto-verify regulatory documents and monitor expiry dates
-              </p>
-            </div>
+        <h1>Check Regulatory Docs</h1>
+          <p className="text-neutral-600 mt-1">Verify supplier regulatory documentation and compliance</p>
           </div>
           <button
-            onClick={() => setShowAutomationSettings(!showAutomationSettings)}
-            className="p-2 hover:bg-blue-100 rounded-lg transition-colors"
+          onClick={() => setShowAddModal(true)}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
           >
-            <Settings className="w-5 h-5 text-blue-600" />
+          <Plus className="w-4 h-4" />
+          Add Document
           </button>
         </div>
 
-        {showAutomationSettings && (
-          <div className="space-y-4 mt-4 pt-4 border-t border-blue-200">
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-blue-900">Enable Automation</label>
-              <button
-                onClick={() => setAutomationEnabled(!automationEnabled)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  automationEnabled ? 'bg-blue-600' : 'bg-neutral-300'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    automationEnabled ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
-            <div>
-              <label className="text-sm text-blue-900 block mb-2">
-                Auto-Verification Threshold: {autoVerifyThreshold}%
-              </label>
-              <input
-                type="range"
-                min="75"
-                max="99"
-                value={autoVerifyThreshold}
-                onChange={(e) => setAutoVerifyThreshold(Number(e.target.value))}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-blue-700 mt-1">
-                <span>Moderate (75%)</span>
-                <span>Strict (99%)</span>
-              </div>
-            </div>
-            <div>
-              <label className="text-sm text-blue-900 block mb-2">
-                Expiry Alert Window: {expiryAlertDays} days
-              </label>
-              <input
-                type="range"
-                min="15"
-                max="90"
-                value={expiryAlertDays}
-                onChange={(e) => setExpiryAlertDays(Number(e.target.value))}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-blue-700 mt-1">
-                <span>15 days</span>
-                <span>90 days</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-3 mt-4">
-          <button
-            onClick={handleAutoVerify}
-            disabled={!automationEnabled}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-neutral-300 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            <Sparkles className="w-4 h-4" />
-            Run Auto-Verification
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          {error}
+          <button onClick={() => setError(null)} className="ml-4 text-red-500 hover:text-red-700">
+            ×
           </button>
-          <button
-            onClick={handleBulkExpiryCheck}
-            disabled={!automationEnabled}
-            className="px-6 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors disabled:bg-neutral-300 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            <Zap className="w-4 h-4" />
-            Bulk Expiry Check
-          </button>
-          <div className="text-sm text-blue-700 flex items-center">
-            {pendingCount} pending documents ready for verification
-          </div>
         </div>
-      </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -224,7 +231,7 @@ export default function CheckDocs() {
             <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
               <Check className="w-5 h-5 text-green-600" />
             </div>
-            <div className="text-2xl">{documents.filter(d => d.status === 'Verified' || d.status === 'Auto-Verified').length}</div>
+            <div className="text-2xl">{verifiedCount}</div>
           </div>
           <div className="text-sm text-neutral-600">Verified</div>
         </div>
@@ -255,64 +262,75 @@ export default function CheckDocs() {
         <div className="p-6 border-b border-neutral-200">
           <h2>Regulatory Documents</h2>
         </div>
+        {loading ? (
+          <div className="p-12 text-center text-neutral-600">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+            Loading documents...
+          </div>
+        ) : (
+          <>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-neutral-50 sticky top-0">
               <tr>
                 <th className="text-left px-6 py-3 text-sm text-neutral-600">Company</th>
                 <th className="text-left px-6 py-3 text-sm text-neutral-600">Document Type</th>
+                    <th className="text-left px-6 py-3 text-sm text-neutral-600">Document Number</th>
+                    <th className="text-left px-6 py-3 text-sm text-neutral-600">Issue Date</th>
+                    <th className="text-left px-6 py-3 text-sm text-neutral-600">Expiry Date</th>
+                    <th className="text-left px-6 py-3 text-sm text-neutral-600">Issuing Authority</th>
                 <th className="text-left px-6 py-3 text-sm text-neutral-600">Upload Date</th>
-                <th className="text-left px-6 py-3 text-sm text-neutral-600">Expiry Date</th>
                 <th className="text-left px-6 py-3 text-sm text-neutral-600">File Type</th>
-                <th className="text-left px-6 py-3 text-sm text-neutral-600">AI Score</th>
+                    <th className="text-left px-6 py-3 text-sm text-neutral-600">Score</th>
                 <th className="text-left px-6 py-3 text-sm text-neutral-600">Status</th>
                 <th className="text-left px-6 py-3 text-sm text-neutral-600">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {documents.map((doc) => (
+                  {documents.length > 0 ? (
+                    documents.map((doc) => (
                 <tr key={doc.id} className="border-t border-neutral-200 hover:bg-neutral-50">
-                  <td className="px-6 py-4">{doc.company}</td>
-                  <td className="px-6 py-4">{doc.docType}</td>
+                        <td className="px-6 py-4">{doc.companyName}</td>
+                        <td className="px-6 py-4">{DOCUMENT_TYPE_LABELS[doc.documentType] || doc.documentType}</td>
+                        <td className="px-6 py-4 text-neutral-600">{doc.documentNumber || 'N/A'}</td>
+                        <td className="px-6 py-4 text-neutral-600">{doc.issueDate || 'N/A'}</td>
+                        <td className="px-6 py-4 text-neutral-600">{doc.expiryDate || 'N/A'}</td>
+                        <td className="px-6 py-4 text-neutral-600">{doc.issuingAuthority || 'N/A'}</td>
                   <td className="px-6 py-4 text-neutral-600">{doc.uploadDate}</td>
-                  <td className="px-6 py-4 text-neutral-600">{doc.expiryDate}</td>
                   <td className="px-6 py-4">
                     <span className="px-2 py-1 bg-neutral-100 text-neutral-700 rounded text-xs">
-                      {doc.fileType}
+                            {doc.fileType || 'PDF'}
                     </span>
                   </td>
                   <td className="px-6 py-4">
                     <div>
-                      <span className={`${getScoreColor(doc.autoValidation.score)}`}>
-                        {doc.autoValidation.score}%
+                            <span className={`font-medium ${getScoreColor(doc.validationScore)}`}>
+                              {doc.validationScore || 'N/A'}%
                       </span>
-                      {doc.autoValidation.issues.length > 0 && (
+                            {doc.validationIssues && doc.validationIssues.length > 0 && (
                         <div className="text-xs text-orange-600 mt-1">
-                          {doc.autoValidation.issues[0]}
+                                {Array.isArray(doc.validationIssues) 
+                                  ? doc.validationIssues[0] 
+                                  : JSON.parse(doc.validationIssues || '[]')[0]}
                         </div>
                       )}
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(doc.status)}`}>
-                      {doc.status}
+                            {STATUS_LABELS[doc.status] || doc.status}
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <button 
-                        className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                        title="View Document"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button 
-                        className="p-1 text-neutral-600 hover:bg-neutral-100 rounded transition-colors"
-                        title="Download"
-                      >
-                        <Download className="w-4 h-4" />
-                      </button>
-                      {doc.status === 'Pending Review' && (
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => handleViewDocument(doc)}
+                              className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                              title="View Document"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            {doc.status === 'PENDING_REVIEW' && (
                         <>
                           <button
                             onClick={() => handleVerify(doc.id)}
@@ -322,7 +340,7 @@ export default function CheckDocs() {
                             <Check className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleReject(doc.id)}
+                                  onClick={() => handleReject(doc)}
                             className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
                             title="Reject"
                           >
@@ -333,7 +351,14 @@ export default function CheckDocs() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={11} className="px-6 py-12 text-center text-neutral-500">
+                        No documents found
+                      </td>
+                    </tr>
+                  )}
             </tbody>
           </table>
         </div>
@@ -341,28 +366,304 @@ export default function CheckDocs() {
         <div className="p-4 border-t border-neutral-200 flex items-center justify-between">
           <div className="text-sm text-neutral-600">Showing {documents.length} documents</div>
         </div>
+          </>
+        )}
       </div>
 
-      {/* Compliance Checklist */}
-      <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-        <div className="flex items-start gap-3">
-          <FileText className="w-5 h-5 text-green-600 mt-0.5" />
+      {/* Add Document Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold">Add Document</h3>
+              <button
+                onClick={() => {
+                  setShowAddModal(false);
+                  setFormData({
+                    companyName: '',
+                    documentType: 'BUSINESS_LICENSE',
+                    documentNumber: '',
+                    issueDate: '',
+                    expiryDate: '',
+                    issuingAuthority: '',
+                    fileType: 'PDF',
+                    extractedText: '',
+                    uploadDate: new Date().toISOString().split('T')[0],
+                  });
+                  setSelectedFile(null);
+                  setInputMethod('manual');
+                  setError(null);
+                }}
+                className="text-neutral-500 hover:text-neutral-700"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddDocument} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Company Name *</label>
+                  <input
+                    type="text"
+                    value={formData.companyName}
+                    onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Document Type *</label>
+                  <select
+                    value={formData.documentType}
+                    onChange={(e) => setFormData({ ...formData, documentType: e.target.value as DocumentType })}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    {Object.entries(DOCUMENT_TYPE_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Document Number</label>
+                  <input
+                    type="text"
+                    value={formData.documentNumber}
+                    onChange={(e) => setFormData({ ...formData, documentNumber: e.target.value })}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Issuing Authority</label>
+                  <input
+                    type="text"
+                    value={formData.issuingAuthority}
+                    onChange={(e) => setFormData({ ...formData, issuingAuthority: e.target.value })}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Issue Date</label>
+                  <input
+                    type="date"
+                    value={formData.issueDate}
+                    onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Expiry Date</label>
+                  <input
+                    type="date"
+                    value={formData.expiryDate}
+                    onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">File Type</label>
+                  <select
+                    value={formData.fileType}
+                    onChange={(e) => setFormData({ ...formData, fileType: e.target.value })}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="PDF">PDF</option>
+                    <option value="JPG">JPG</option>
+                    <option value="PNG">PNG</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Upload Date</label>
+                  <input
+                    type="date"
+                    value={formData.uploadDate}
+                    onChange={(e) => setFormData({ ...formData, uploadDate: e.target.value })}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
           <div>
-            <h3 className="text-green-900 mb-2">AI-Powered Verification for MedBiz Suppliers</h3>
-            <ul className="text-sm text-green-800 space-y-1">
-              <li>✓ Automated OCR extraction of document details and expiry dates</li>
-              <li>✓ Cross-reference business licenses with regulatory databases</li>
-              <li>✓ Verify pharmaceutical distribution credentials</li>
-              <li>✓ Validate quality certifications (GMP, ISO, etc.)</li>
-              <li>✓ Automated expiry tracking and renewal reminders</li>
-              <li>✓ Fraud detection using document authenticity analysis</li>
-            </ul>
+                <label className="block text-sm font-medium mb-1">Document Text (for validation)</label>
+                <textarea
+                  value={formData.extractedText}
+                  onChange={(e) => setFormData({ ...formData, extractedText: e.target.value })}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={6}
+                  placeholder="Enter the document text content for validation scoring..."
+                />
+                <p className="text-xs text-neutral-500 mt-1">
+                  Enter the document text to calculate validation score. This text will be analyzed for keywords, dates, and quality.
+                </p>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setFormData({
+                      companyName: '',
+                      documentType: 'BUSINESS_LICENSE',
+                      documentNumber: '',
+                      issueDate: '',
+                      expiryDate: '',
+                      issuingAuthority: '',
+                      fileType: 'PDF',
+                      extractedText: '',
+                      uploadDate: new Date().toISOString().split('T')[0],
+                    });
+                    setError(null);
+                  }}
+                  className="px-4 py-2 border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {creating && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {creating ? 'Creating...' : 'Create Document'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
+      )}
+
+      {/* View Document Modal */}
+      {showViewModal && selectedDoc && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold">Document Information</h3>
+              <button
+                onClick={() => {
+                  setShowViewModal(false);
+                  setSelectedDoc(null);
+                }}
+                className="text-neutral-500 hover:text-neutral-700"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-neutral-600">Company Name</label>
+                  <p className="font-medium">{selectedDoc.companyName}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-neutral-600">Document Type</label>
+                  <p className="font-medium">{DOCUMENT_TYPE_LABELS[selectedDoc.documentType] || selectedDoc.documentType}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-neutral-600">Document Number</label>
+                  <p className="font-medium">{selectedDoc.documentNumber || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-neutral-600">Issuing Authority</label>
+                  <p className="font-medium">{selectedDoc.issuingAuthority || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-neutral-600">Issue Date</label>
+                  <p className="font-medium">{selectedDoc.issueDate || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-neutral-600">Expiry Date</label>
+                  <p className="font-medium">{selectedDoc.expiryDate || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-neutral-600">Upload Date</label>
+                  <p className="font-medium">{selectedDoc.uploadDate}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-neutral-600">File Type</label>
+                  <p className="font-medium">{selectedDoc.fileType || 'PDF'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-neutral-600">Validation Score</label>
+                  <p className={`font-medium ${getScoreColor(selectedDoc.validationScore)}`}>
+                    {selectedDoc.validationScore || 'N/A'}%
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm text-neutral-600">Status</label>
+                  <span className={`inline-block px-2 py-1 rounded-full text-xs ${getStatusColor(selectedDoc.status)}`}>
+                    {STATUS_LABELS[selectedDoc.status] || selectedDoc.status}
+                  </span>
+                </div>
+                {selectedDoc.keywordMatches !== undefined && (
+                  <div>
+                    <label className="text-sm text-neutral-600">Keyword Matches</label>
+                    <p className="font-medium">{selectedDoc.keywordMatches}</p>
+                  </div>
+                )}
+                {selectedDoc.daysUntilExpiry !== undefined && (
+                  <div>
+                    <label className="text-sm text-neutral-600">Days Until Expiry</label>
+                    <p className="font-medium">{selectedDoc.daysUntilExpiry}</p>
+                  </div>
+                )}
       </div>
 
+              {selectedDoc.validationIssues && (
+                <div>
+                  <label className="text-sm text-neutral-600">Validation Issues</label>
+                  <div className="mt-1">
+                    {Array.isArray(selectedDoc.validationIssues) ? (
+                      selectedDoc.validationIssues.length > 0 ? (
+                        <ul className="list-disc list-inside text-sm text-orange-600">
+                          {selectedDoc.validationIssues.map((issue, idx) => (
+                            <li key={idx}>{issue}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-neutral-600">No issues found</p>
+                      )
+                    ) : (
+                      <ul className="list-disc list-inside text-sm text-orange-600">
+                        {JSON.parse(selectedDoc.validationIssues || '[]').map((issue: string, idx: number) => (
+                          <li key={idx}>{issue}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {selectedDoc.verifiedBy && (
+                <div>
+                  <label className="text-sm text-neutral-600">Verified By</label>
+                  <p className="font-medium">{selectedDoc.verifiedBy}</p>
+                </div>
+              )}
+
+              {selectedDoc.verifiedAt && (
+                <div>
+                  <label className="text-sm text-neutral-600">Verified At</label>
+                  <p className="font-medium">{selectedDoc.verifiedAt}</p>
+                </div>
+              )}
+
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Reject Modal */}
-      {showRejectModal && (
+      {showRejectModal && selectedDoc && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <div className="flex items-center gap-3 mb-4">

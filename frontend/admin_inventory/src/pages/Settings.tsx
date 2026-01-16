@@ -27,6 +27,7 @@ export default function Settings() {
   const [users, setUsers] = useState<UserResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingUser, setEditingUser] = useState<UserResponse | null>(null);
@@ -160,6 +161,10 @@ export default function Settings() {
   const handleSaveNotifications = () => {
     console.log('Saving notification settings:', notificationSettings);
     setError(null);
+    setToastMessage('Notification preferences saved successfully');
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
   };
 
   // User management handlers
@@ -302,6 +307,13 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-4 right-4 z-50 bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2">
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       <div>
         <h1>Settings</h1>
         <p className="text-neutral-600 mt-1">Configure system preferences and user management</p>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Search, AlertTriangle, Calendar, Edit2, Check, X, Upload, Eye, Package } from 'lucide-react';
 import { productService, type Product as BackendProduct } from '../../sevices/productService';
 import { stockService } from '../../sevices/stockService';
@@ -18,7 +19,9 @@ interface ProductDisplay {
 }
 
 export default function ProductInventory() {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchParams] = useSearchParams();
+  const initialSearchTerm = searchParams.get('search') || '';
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'view' | 'update' | 'bulkUpdate'>('view');
@@ -28,11 +31,19 @@ export default function ProductInventory() {
   const [loading, setLoading] = useState(true);
   const [stockData, setStockData] = useState<ProductDisplay[]>([]);
 
+  // Update search term when URL params change
+  useEffect(() => {
+    const searchFromUrl = searchParams.get('search') || '';
+    if (searchFromUrl !== searchTerm) {
+      setSearchTerm(searchFromUrl);
+    }
+  }, [searchParams]);
+
   // Fetch products from API
   useEffect(() => {
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [warehouseFilter]);
+  }, [warehouseFilter, searchTerm]);
 
   const loadProducts = async () => {
     try {

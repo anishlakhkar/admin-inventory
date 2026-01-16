@@ -12,6 +12,7 @@ export default function UserApproval() {
   const [filterStatus, setFilterStatus] = useState<StatusFilter>('All');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Auto-approval settings
   const [autoApprovalSettings, setAutoApprovalSettings] = useState({
@@ -146,6 +147,10 @@ export default function UserApproval() {
     console.log('Saving email templates:', emailTemplates);
     // Email templates saved - changes will be reflected immediately
     setError(null);
+    setToastMessage('Email templates saved successfully');
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
   };
 
   const handleApproveUser = async (id: number) => {
@@ -236,6 +241,10 @@ export default function UserApproval() {
     // Test email sent - action logged, no alert needed
     console.log(`Test email sent for template: ${templateType}`);
     setError(null);
+    setToastMessage(`Test email sent for ${templateType}`);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
   };
 
   const filteredRegistrations = registrations.filter(reg => {
@@ -286,6 +295,13 @@ export default function UserApproval() {
 
   return (
     <div className="space-y-6">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-4 right-4 z-50 bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2">
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       <div>
         <h1>User Registration & Approval</h1>
         <p className="text-neutral-600 mt-1">

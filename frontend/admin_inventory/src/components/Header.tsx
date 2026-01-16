@@ -14,6 +14,7 @@ export default function Header() {
   const [notificationCount] = useState(3);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userTypes, setUserTypes] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -42,6 +43,21 @@ export default function Header() {
     localStorage.removeItem('userId');
     localStorage.removeItem('userTypes');
     navigate('/login');
+  };
+
+  const handleSearchClick = () => {
+    // Navigate to Product Inventory page when search bar is clicked
+    navigate('/inventory/products');
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      // Navigate to Product Inventory with search query
+      navigate(`/inventory/products?search=${encodeURIComponent(searchQuery.trim())}`);
+    } else if (e.key === 'Enter') {
+      // If Enter pressed without query, just navigate to the page
+      navigate('/inventory/products');
+    }
   };
 
   // Get user role display name
@@ -93,7 +109,12 @@ export default function Header() {
             <input
               type="text"
               placeholder="Search products, SKU"
-              className="w-full pl-10 pr-4 py-2 border border-white/20 bg-white/10 text-white placeholder:text-white/60 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/40 focus:border-transparent"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={handleSearchClick}
+              onClick={handleSearchClick}
+              onKeyDown={handleSearchKeyDown}
+              className="w-full pl-10 pr-4 py-2 border border-white/20 bg-white/10 text-white placeholder:text-white/60 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/40 focus:border-transparent cursor-pointer"
             />
           </div>
         </div>
