@@ -27,4 +27,3 @@ EXPOSE 8080
 # Make sure it listens on all interfaces inside container
 ENV JAVA_OPTS="-Dquarkus.http.host=0.0.0.0"
 CMD ["java","-jar","/app/quarkus-run.jar"]
-``
